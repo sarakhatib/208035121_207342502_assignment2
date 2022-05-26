@@ -67,6 +67,7 @@ def main():
     if(k<1):
         print("Invalid Input!")
         return 1
+    epsilon = float(epsilon)
     iter_num=0
     Euclidean_Norm=True
     data_1 = pd.read_csv(file_name_1, header=None)
@@ -74,11 +75,14 @@ def main():
     data = pd.merge(data_1, data_2, on=0)
     vals = data.values
     points = []
+    indices = []
     for row in vals:
         coordinate = row[1:]
+        indices.append(int(row[0]))
         point = Point(len(row)-1,coordinate)
         points.append(point)
-    clusters = build_k_clusters(points,k)
+    clusters = build_k_clusters(points,k,indices)
+    print(clusters)
     while(iter_num<max_iter and Euclidean_Norm):
         old_norms = []
         for cluster in clusters:
@@ -99,12 +103,17 @@ def main():
             if(i<d-1):
                 res += ","
         res += "\n"
+    print(res)
 
-def build_k_clusters(points, k):
+def build_k_clusters(points, k,indices):
+    np.random.seed(0)
     clusters = []
     i = 1 
     n = len(points)
-    first_centroid = random.choice(points)
+    indexs =np.array([i for i in range(n)])
+    centroid_index = np.random.choice(indexs, size = 1)
+    print(indices[centroid_index[0]])
+    first_centroid = points[centroid_index[0]]
     clusters.append(Cluster(first_centroid.coordinates,0))
     d = np.array([distance(p.coordinates,first_centroid.coordinates) for p in points])
     p = [0 for m in range(n)]
@@ -118,8 +127,9 @@ def build_k_clusters(points, k):
         for l in range(n):
             p[l] = d[l]/d_total
         i += 1
-        centroid = random.choices(points, weights=p, k=1)
-        clusters.append(Cluster(centroid[0].coordinates,i-1))
+        centroid_index = np.random.choice(indexs, p=p, size = 1)
+        print(indices[centroid_index[0]])
+        clusters.append(Cluster(points[centroid_index[0]].coordinates,i-1))
     return clusters    
 
 def distance(coordinates_1, coordinates_2):
@@ -170,11 +180,13 @@ def create_data_frames(file_name_1, file_name_2):
     vals = data.values
     #print(vals[0][2])
     points = []
+    indices = []
     for row in vals:
         coordinate = row[1:]
+        indices.append(row[0])
         point = Point(len(row)-1,coordinate)
         points.append(point)
     print([points[4]])
 
 create_data_frames("input_1_db_1.txt","input_1_db_2.txt")
-#main()
+main()
