@@ -1,9 +1,8 @@
 import sys
 import math
-import random
 import numpy as np
 import pandas as pd
-
+import mykmeanssp
 
 class Point:
     def __init__(self, d, coordinates):
@@ -71,7 +70,9 @@ def main():
     iter_num=0
     Euclidean_Norm=True
     data_1 = pd.read_csv(file_name_1, header=None)
+    data_1 = data_1.sort_values(0)
     data_2 = pd.read_csv(file_name_2, header=None)
+    data_2 = data_2.sort_values(0)
     data = pd.merge(data_1, data_2, on=0)
     vals = data.values
     points = []
@@ -114,9 +115,11 @@ def build_k_clusters(points, k,indices):
     centroid_index = np.random.choice(indexs, size = 1)
     print(indices[centroid_index[0]])
     first_centroid = points[centroid_index[0]]
+    # np_points = np.array(points, dtype=Point)
+    # first_centroid = np.random.choice(np_points, size=1)
     clusters.append(Cluster(first_centroid.coordinates,0))
     d = np.array([distance(p.coordinates,first_centroid.coordinates) for p in points])
-    p = [0 for m in range(n)]
+    pr = [0 for m in range(n)]
     while(i < k):
         for l in range(n):
             for j in range(i):
@@ -125,16 +128,18 @@ def build_k_clusters(points, k,indices):
                     d[l] = dist
         d_total = np.sum(d)
         for l in range(n):
-            p[l] = d[l]/d_total
+            pr[l] = d[l]/d_total
         i += 1
-        centroid_index = np.random.choice(indexs, p=p, size = 1)
+        centroid_index = np.random.choice(indexs, p=pr, size = 1)
         print(indices[centroid_index[0]])
         clusters.append(Cluster(points[centroid_index[0]].coordinates,i-1))
+        # centroid = np.random.choice(np_points, p=p, size=1)
+        # clusters.append(Cluster(centroid[0].coordinates, i-1))
     return clusters    
 
 def distance(coordinates_1, coordinates_2):
     dist = np.linalg.norm(coordinates_1-coordinates_2)
-    return dist
+    return pow(dist,2)
 
 def assign_cluster(points, clusters):
     k = len(clusters)
@@ -175,7 +180,9 @@ def updated_centorid(points, clusters):
 
 def create_data_frames(file_name_1, file_name_2):
     data_1 = pd.read_csv(file_name_1, header=None)
+    data_1 = data_1.sort_values(0)
     data_2 = pd.read_csv(file_name_2, header=None)
+    data_2 = data_2.sort_values(0)
     data = pd.merge(data_1, data_2, on=0)
     vals = data.values
     #print(vals[0][2])
