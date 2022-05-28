@@ -1,5 +1,6 @@
 import sys
 import math
+import argparse
 import numpy as np
 import pandas as pd
 import mykmeanssp
@@ -42,7 +43,7 @@ class Cluster:
 def main():
     n = len(sys.argv)
     k=0 
-    max_iter = 200 
+    max_iter = 300 
     if(not sys.argv[1].isdigit()):
         print("Invalid Input!")
         return 1
@@ -77,34 +78,44 @@ def main():
     vals = data.values
     points = []
     indices = []
+    c_points = []
+    c_clusters = []
     for row in vals:
-        coordinate = row[1:]
+        coordinates = row[1:]
         indices.append(int(row[0]))
-        point = Point(len(row)-1,coordinate)
+        point = Point(len(row)-1,coordinates)
         points.append(point)
+        c_points.append(coordinates)
+    d = len(coordinates)
+    size = len(points)
     clusters = build_k_clusters(points,k,indices)
-    print(clusters)
-    while(iter_num<max_iter and Euclidean_Norm):
-        old_norms = []
-        for cluster in clusters:
-            old_norms.append(cluster.norm)
-        assign_cluster(points, clusters)
-        updated_centorid(points, clusters)
-        Euclidean_Norm=False
-        for cluster in clusters:
-            if(math.fabs(cluster.norm-old_norms[cluster.index])>epsilon):
-                Euclidean_Norm=True
-        iter_num+=1
-    res = ""
-    d = len(cluster.centroid_coordinates)
-    for cluster in clusters:
-        coordintes = cluster.centroid_coordinates
-        for i in range(d):
-            res += "{:.4f}".format(coordintes[i])
-            if(i<d-1):
-                res += ","
-        res += "\n"
-    print(res)
+    c_clusters = [c.centroid_coordinates for c in clusters]
+    c_centroids = mykmeanssp.fit(k, max_iter, size, d, c_points, c_clusters, epsilon)
+    centroids = np.array(c_centroids)
+    print(centroids)
+
+    #print(clusters)
+    # while(iter_num<max_iter and Euclidean_Norm):
+    #     old_norms = []
+    #     for cluster in clusters:
+    #         old_norms.append(cluster.norm)
+    #     assign_cluster(points, clusters)
+    #     updated_centorid(points, clusters)
+    #     Euclidean_Norm=False
+    #     for cluster in clusters:
+    #         if(math.fabs(cluster.norm-old_norms[cluster.index])>epsilon):
+    #             Euclidean_Norm=True
+    #     iter_num+=1
+    # res = ""
+    # d = len(cluster.centroid_coordinates)
+    # for cluster in clusters:
+    #     coordintes = cluster.centroid_coordinates
+    #     for i in range(d):
+    #         res += "{:.4f}".format(coordintes[i])
+    #         if(i<d-1):
+    #             res += ","
+    #     res += "\n"
+    # print(res)
 
 def build_k_clusters(points, k,indices):
     np.random.seed(0)
@@ -195,5 +206,4 @@ def create_data_frames(file_name_1, file_name_2):
         points.append(point)
     print([points[4]])
 
-create_data_frames("input_1_db_1.txt","input_1_db_2.txt")
 main()

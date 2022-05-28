@@ -142,118 +142,131 @@ int isNumber(char* s)
     return 1;
 }
 
-int main(int argc, char *argv[]){
 
-    char *inputk, *inputFileName, *outputFileName;
-    char c;
-    int d=0, line=0, first=1, k, iter_num, Euclidean_Norm, i, max_iter=200;
-    double epsilon = 0.001, num, *old_norms;
-    coordinate *head, *temp, *curr, *co;
-    point *points, p;
-    FILE *in_file, *out_file;
-    cluster *clusters, cl;
-    if(argc<4){
-        printf("Invalid Input!");
-        return 1;
+static PyObject* fit(PyObject *self, PyObject *args){
+    //k, max_iter, epsilon, size, d, points, clusters
+    int k, max_iter, size, d,i,j;
+    point *points, *p;
+    cluster *clusters, *c;
+    coordinate *head, *temp, *curr;
+    PyObject *_pythonPoints, *_pythonClusters, *array, *finalClusters, *centroids;
+    double epsilon, number; 
+    if (!PyArg_ParseTuple(args, "iiiiOOd", &k, &max_iter, &size, &d, &_pythonPoints, &_pythonClusters,&epsilon)) {
+        return NULL;
     }
-    if(argc>5){
-        printf("Invalid Input!");
-        return 1;
+    if (!PyList_Check(_pythonPoints)) {
+        return NULL;
     }
-    inputk = argv[1];
-    k = atoi(inputk);
-    if(!isNumber(inputk) || k<1){
-        printf("Invalid Input!");
-        return 1;
+    if (!PyList_Check(_pythonClusters)) {
+        return NULL;
     }
-    max_iter = 200;
-    if(argc==5){
-        char* inputMaxIter = argv[2];
-        inputFileName = argv[3];
-        outputFileName = argv[4];
-        if(!isNumber(inputMaxIter)){
-            printf("Invalid Input!");
-            return 1;
-        }
-        max_iter = atoi(inputMaxIter);
-        if (max_iter<1)
-        {
-            printf("Invalid Input!");
-            return 1;
-        }  
-    }
-    else{
-        inputFileName = argv[2];
-        outputFileName = argv[3]; 
-    }
-    in_file  = fopen(inputFileName, "r");
-    out_file = fopen(outputFileName, "w"); 
-    if(in_file == NULL || out_file == NULL){
-        printf("An Error Has Occurred");
-        return 1;
-    }
-    assert(in_file!=NULL);
-    assert(out_file!=NULL);
-    while ( fscanf( in_file, "%lf%c", &num, &c ) == 2 ){
-        if(first == 1){
+    points = malloc(sizeof(point) * size);
+    clusters = malloc(sizeof(cluster) * k);
+    for(i=0; i< size; i++){
+        array = PyList_GetItem(_pythonPoints, i);
+        for(j=0 ; j<d; j++){
+            number = PyFloat_AsDouble(PyList_GetItem(array,j));
+            if(j == 0){
             head = (coordinate *)malloc(sizeof(coordinate));
             if(head == NULL){
                 printf("An Error Has Occurred");
-                return 1;
+                return NULL;
             }
-            head->value=num;
+            head->value=number;
             head->next=NULL;
             curr=head;
-            first = 0;
         }
         else{
             temp = (coordinate*) malloc(sizeof(coordinate));
             if(temp == NULL){
                 printf("An Error Has Occurred");
-                return 1;
+                return NULL;
             }
-            temp->value=num;
+            temp->value=number;
             temp->next=NULL; 
             curr->next=temp;
             curr=curr->next;
         }
-
-        if(line==0){
-            d++;
         }
-        if(c=='\n'){
-            p.coordinates=head;
-            p.d=d;
-            first = 1;
-            if(line==0){
-                points =malloc(sizeof(point));
-                if(points == NULL){
-                    printf("An Error Has Occurred");
-                    return 1;
-                }
-                points[0] = p ;
-            }
-            else{
-                points = realloc(points, (line+1)*sizeof(point));
-                if(points==NULL){
-                    printf("An Error Has Occurred");
-                    return 1;
-                }
-                points[line] = p;
-            }
-            line++;
-        }
+        p = malloc(sizeof(point));
+        p->d = d;
+        p->coordinates = head;
+        points[i] = *p;
     }
-    clusters = buildKclusters(k, points); 
-    iter_num = 0;
-    Euclidean_Norm=1;
+    for( i=0 ; i<k; i++){
+        array = PyList_GetItem(_pythonClusters, i);
+        for(j=0 ; j<d; j++){
+            number = PyFloat_AsDouble(PyList_GetItem(array,j));
+            if(j == 0){
+            head = (coordinate *)malloc(sizeof(coordinate));
+            if(head == NULL){
+                printf("An Error Has Occurred");
+                return NULL;
+            }
+            head->value=number;
+            head->next=NULL;
+            curr=head;
+        }
+            else{
+                temp = (coordinate*) malloc(sizeof(coordinate));
+                if(temp == NULL){
+                    printf("An Error Has Occurred");
+                    return NULL;
+                }
+                temp->value=number;
+                temp->next=NULL; 
+                curr->next=temp;
+                curr=curr->next;
+        }
+        }
+        c = malloc(sizeof(cluster));
+        c->centroid = head;
+        c->index = i; 
+        c->len=0;
+        clusters[i] = *c;
+    }
+    clusters = kmeans_pp(k, max_iter, d, size, points, clusters, epsilon);
+    finalClusters = PyList_New(k);
+    if(finalClusters==NULL){
+        return NULL;
+    }
+    for(i=0; i<k; i++){
+        centroids = PyList_New(d);
+        if(centroids == NULL){
+            return NULL;
+        }
+        temp = clusters[i].centroid;
+        j=0;
+        while(temp->next!=NULL){
+            PyList_SetItem(centroids,j,Py_BuildValue("d",temp->value));
+            temp = temp->next;
+            j++; 
+        }
+        PyList_SetItem(centroids,j,Py_BuildValue("d",temp->value));
+        PyList_SetItem(finalClusters,i,Py_BuildValue("O",centroids));
+
+    }
+    free(clusters);
+    free(points);
+    
+
+}
+
+
+cluster* kmeans_pp(int k, int max_iter, int d, int size, point* points, cluster* clusters, double epsilon){
+
+    int line = size, iter_num = 0, Euclidean_Norm = 1, i;
+    double *old_norms;
+    coordinate *co;
+    point p;
+    cluster cl;
     while (iter_num<=max_iter && Euclidean_Norm)
     {
         assigncluster(points,clusters,k,line);
         old_norms = malloc(sizeof(double)*k);
         if(old_norms == NULL){
             printf("An Error Has Occurred");
-            return 1;
+            return NULL;
         }
         for( i=0; i<k; i++){
             old_norms[i]=clusters[i].norm;
@@ -268,33 +281,37 @@ int main(int argc, char *argv[]){
         }
         iter_num++;
     }
-    for( i=0; i<k; i++){
-        cl = clusters[i];
-        co = cl.centroid;
-        while (co!=NULL)
-        {
-            if(co->next==NULL){
-                fprintf(out_file,"%.4f",co->value);
-            }
-            else{
-                fprintf(out_file,"%.4f,",co->value);
-            }
-            co=co->next;
-        }
-        fprintf(out_file, "\n");
-    }
-    fclose(in_file);
-    fclose(out_file);
-    free(clusters);
-    free(head);
-    free(points);
-    free(temp);
     free(old_norms);
-    return 0;
+    return clusters;
 }
 
 
 
+static PyMethodDef capiMethods[] = {
+        { "fit",
+                (PyCFunction)fit,
+                METH_VARARGS,
+                PyDoc_STR("centroids for k clusters")},
+        {NULL,NULL,0,NULL}
+};
 
+static struct PyModuleDef _moduledef= {
+        PyModuleDef_HEAD_INIT,
+        "mykmeanssp",
+        NULL,
+        -1,
+        capiMethods
+};
+
+PyMODINIT_FUNC
+PyInit_mykmeanssp(void)
+{
+    PyObject *m;
+    m=PyModule_Create(&_moduledef);
+    if(!m){
+        return NULL;
+    }
+    return m;
+}
 
 
