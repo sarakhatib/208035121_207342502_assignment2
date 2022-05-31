@@ -28,6 +28,8 @@ struct cluster{
 
 };
 
+static struct cluster* kmeans_pp(int k, int max_iter, int d, int size, point* points, cluster* clusters, double epsilon);
+
 cluster* buildKclusters(int k, point *points){
     cluster *clusters, *cl;
     int i, first;
@@ -257,9 +259,6 @@ cluster* kmeans_pp(int k, int max_iter, int d, int size, point* points, cluster*
 
     int line = size, iter_num = 0, Euclidean_Norm = 1, i;
     double *old_norms;
-    coordinate *co;
-    point p;
-    cluster cl;
     while (iter_num<=max_iter && Euclidean_Norm)
     {
         assigncluster(points,clusters,k,line);
